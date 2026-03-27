@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Theme Merge - Light & Dark</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #1a1a1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    
+    h1 {
+      color: #fff;
+      font-size: 24px;
+      margin: 0;
+    }
+    
+    canvas {
+      cursor: pointer;
+      border: 2px dashed #444;
+      border-radius: 8px;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+    
+    button {
+      padding: 10px 20px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    button:hover {
+      background: #2563eb;
+      transform: translateY(-1px);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      background: #555;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    label {
+      color: #fff;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    input[type="range"] {
+      width: 200px;
+    }
+    
+    .info {
+      color: #888;
+      font-size: 13px;
+      text-align: center;
+      max-width: 600px;
+    }
+    
+    .upload-prompt {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #666;
+      font-size: 16px;
+      text-align: center;
+      pointer-events: none;
+    }
+    
+    .canvas-container {
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎨 Theme Comparison - Light ↗️ Dark</h1>
+  
+  <div class="canvas-container">
+    <canvas id="canvas" width="800" height="600"></canvas>
+    <div class="upload-prompt" id="uploadPrompt">
+      Click to upload images<br>
+      <small style="color: #555;">Left: Light theme • Right: Dark theme</small>
+    </div>
+  </div>
+  
+  <div class="controls">
+    <label>
+      Diagonal Angle:
+      <input type="range" id="angleSlider" min="-45" max="45" value="0" step="1">
+      <span id="angleValue">0°</span>
+    </label>
+    
+    <button id="downloadBtn">💾 Download Image</button>
+  </div>
+  
+  <input type="file" id="lightFileInput" accept="image/*" style="display: none;">
+  <input type="file" id="darkFileInput" accept="image/*" style="display: none;">
+  
+  <div class="info">
+    Click left area to replace light theme · Click right area to replace dark theme<br>
+    Seamless diagonal transition between identical content
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const angleSlider = document.getElementById('angleSlider');
+    const angleValue = document.getElementById('angleValue');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const lightFileInput = document.getElementById('lightFileInput');
+    const darkFileInput = document.getElementById('darkFileInput');
+    const uploadPrompt = document.getElementById('uploadPrompt');
+    
+    let lightImg = null;
+    let darkImg = null;
+    
+    // Initial state - disable download button
+    downloadBtn.disabled = true;
+    
+    function updateUI() {
+      const bothImagesLoaded = lightImg && darkImg;
+      downloadBtn.disabled = !bothImagesLoaded;
+      uploadPrompt.style.display = bothImagesLoaded ? 'none' : 'block';
+    }
+    
+    updateUI();
+    
+    function drawMergedImage() {
+      if (!lightImg || !darkImg) return;
+      
+      const angle = parseFloat(angleSlider.value);
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw dark theme as base
+      ctx.drawImage(darkImg, 0, 0);
+      
+      // Create diagonal mask for light theme
+      ctx.save();
+      
+      // Create clipping path - diagonal line from top-left to bottom-right
+      ctx.beginPath();
+      
+      const angleRad = (angle * Math.PI) / 180;
+      
+      // Calculate diagonal line endpoints with rotation
+      const diagonal = Math.sqrt(canvas.width ** 2 + canvas.height ** 2);
+      const baseAngle = Math.atan2(canvas.height, canvas.width);
+      
+      // Top-left triangle (light theme area)
+      ctx.moveTo(0, 0);
+      ctx.lineTo(canvas.width, 0);
+      
+      // Diagonal line with angle adjustment
+      const x1 = canvas.width + diagonal * Math.cos(baseAngle + angleRad);
+      const y1 = -diagonal * Math.sin(baseAngle + angleRad);
+      const x2 = -diagonal * Math.cos(baseAngle + angleRad);
+      const y2 = canvas.height + diagonal * Math.sin(baseAngle + angleRad);
+      
+      ctx.lineTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.lineTo(0, canvas.height);
+      ctx.closePath();
+      
+      ctx.clip();
+      
+      // Draw light theme in the clipped area
+      ctx.drawImage(lightImg, 0, 0);
+      
+      ctx.restore();
+    }
+    
+    // Check if click is on light or dark side
+    function isPointOnLightSide(x, y) {
+      const angle = parseFloat(angleSlider.value);
+      const angleRad = (angle * Math.PI) / 180;
+      const baseAngle = Math.atan2(canvas.height, canvas.width);
+      
+      // Calculate perpendicular distance from point to diagonal line
+      const centerX = canvas.width / 2;
+      const centerY = canvas.height / 2;
+      
+      // Transform point relative to center
+      const dx = x - centerX;
+      const dy = y - centerY;
+      
+      // Rotate point by negative angle to align with base diagonal
+      const rotatedX = dx * Math.cos(-angleRad) - dy * Math.sin(-angleRad);
+      const rotatedY = dx * Math.sin(-angleRad) + dy * Math.cos(-angleRad);
+      
+      // Check which side: light theme is top-left (rotatedY < rotatedX * tan(baseAngle))
+      const baseSlope = Math.tan(baseAngle);
+      return rotatedY < rotatedX * baseSlope;
+    }
+    
+    // Event listeners
+    angleSlider.addEventListener('input', (e) => {
+      angleValue.textContent = e.target.value + '°';
+      drawMergedImage();
+    });
+    
+    // Click on canvas to replace images
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      // Scale coordinates to canvas size
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const canvasX = x * scaleX;
+      const canvasY = y * scaleY;
+      
+      if (isPointOnLightSide(canvasX, canvasY)) {
+        lightFileInput.click();
+      } else {
+        darkFileInput.click();
+      }
+    });
+    
+    // Handle light theme image upload
+    lightFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            lightImg = img;
+            // Set canvas size to match the first loaded image
+            if (!darkImg || !canvas.width || canvas.width === 800) {
+              canvas.width = lightImg.width;
+              canvas.height = lightImg.height;
+            }
+            updateUI();
+            drawMergedImage();
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    
+    // Handle dark theme image upload
+    darkFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            darkImg = img;
+            // Set canvas size to match the first loaded image
+            if (!lightImg || !canvas.width || canvas.width === 800) {
+              canvas.width = darkImg.width;
+              canvas.height = darkImg.height;
+            }
+            updateUI();
+            drawMergedImage();
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    
+    // Download functionality
+    downloadBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      link.download = `theme-merge-${timestamp}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  </script>
+</body>
+</html>
