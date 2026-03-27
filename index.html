@@ -228,7 +228,7 @@
   
   <div class="info">
     Click left area to upload/replace light theme · Click right area to upload/replace dark theme<br>
-    Upload one image to preview, upload both to create diagonal merge effect
+    Or paste image from clipboard (Ctrl/Cmd+V) · Upload one to preview, both to merge
   </div>
   
   <div class="github-link">
@@ -247,6 +247,7 @@
     
     let lightImg = null;
     let darkImg = null;
+    let lastClickSide = 'light'; // Track which side was last clicked
     
     // Initial state - disable download button
     downloadBtn.disabled = true;
@@ -259,6 +260,34 @@
     }
     
     updateUI();
+    
+    // Load image from file or blob
+    function loadImageToSide(file, side) {
+      if (!file || !file.type.startsWith('image/')) return;
+      
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          if (side === 'light') {
+            lightImg = img;
+          } else {
+            darkImg = img;
+          }
+          
+          // Set canvas size to match the first loaded image
+          if ((!lightImg && !darkImg) || !canvas.width || canvas.width === 800) {
+            canvas.width = img.width;
+            canvas.height = img.height;
+          }
+          
+          updateUI();
+          drawMergedImage();
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
     
     function drawMergedImage() {
       // Handle case when no images are loaded
@@ -361,8 +390,10 @@
       const canvasY = y * scaleY;
       
       if (isPointOnLightSide(canvasX, canvasY)) {
+        lastClickSide = 'light';
         lightFileInput.click();
       } else {
+        lastClickSide = 'dark';
         darkFileInput.click();
       }
     });
@@ -371,22 +402,7 @@
     lightFileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const img = new Image();
-          img.onload = () => {
-            lightImg = img;
-            // Set canvas size to match the first loaded image
-            if (!darkImg || !canvas.width || canvas.width === 800) {
-              canvas.width = lightImg.width;
-              canvas.height = lightImg.height;
-            }
-            updateUI();
-            drawMergedImage();
-          };
-          img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
+        loadImageToSide(file, 'light');
       }
     });
     
@@ -394,22 +410,38 @@
     darkFileInput.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const img = new Image();
-          img.onload = () => {
-            darkImg = img;
-            // Set canvas size to match the first loaded image
-            if (!lightImg || !canvas.width || canvas.width === 800) {
-              canvas.width = darkImg.width;
-              canvas.height = darkImg.height;
-            }
-            updateUI();
-            drawMergedImage();
-          };
-          img.src = event.target.result;
-        };
-        reader.readAsDataURL(file);
+        loadImageToSide(file, 'dark');
+      }
+    });
+    
+    // Handle paste from clipboard
+    document.addEventListener('paste', (e) => {
+      e.preventDefault();
+      
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      
+      // Find image in clipboard
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.startsWith('image/')) {
+          const file = items[i].getAsFile();
+          
+          // Decide which side to paste to
+          let targetSide = 'light';
+          
+          // If only one image is missing, paste to that side
+          if (lightImg && !darkImg) {
+            targetSide = 'dark';
+          } else if (!lightImg && darkImg) {
+            targetSide = 'light';
+          } else if (lightImg && darkImg) {
+            // Both exist, use last clicked side
+            targetSide = lastClickSide;
+          }
+          
+          loadImageToSide(file, targetSide);
+          break;
+        }
       }
     });
     
