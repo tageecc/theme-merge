@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎨 Theme Merge | 主题合并工具
+# 🎨 Merge Image | 图片合并工具
 
 **一个精美的在线工具，用于创建亮暗主题对角线分割对比图**
 

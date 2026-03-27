@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎨 Theme Merge
+# 🎨 Merge Image
 
 **A beautiful web tool for creating diagonal split comparisons of light and dark theme screenshots**
 
