@@ -29,9 +29,9 @@
 
 ## 🎬 Demo
 
-> Add your screenshot or demo GIF here after deployment
+![Theme Merge Demo](demo.png)
 
-![Theme Merge Demo](demo.gif)
+*Diagonal split comparison showing light theme (top-left) and dark theme (bottom-right)*
 
 ## 🚀 Quick Start
 
