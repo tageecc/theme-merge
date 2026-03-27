@@ -151,7 +151,7 @@
   <div class="canvas-container">
     <canvas id="canvas" width="800" height="600"></canvas>
     <div class="upload-prompt" id="uploadPrompt">
-      Click to upload images<br>
+      Click to upload first image<br>
       <small style="color: #555;">Left: Light theme • Right: Dark theme</small>
     </div>
   </div>
@@ -170,8 +170,8 @@
   <input type="file" id="darkFileInput" accept="image/*" style="display: none;">
   
   <div class="info">
-    Click left area to replace light theme · Click right area to replace dark theme<br>
-    Seamless diagonal transition between identical content
+    Click left area to upload/replace light theme · Click right area to upload/replace dark theme<br>
+    Upload one image to preview, upload both to create diagonal merge effect
   </div>
 
   <script>
@@ -192,19 +192,33 @@
     
     function updateUI() {
       const bothImagesLoaded = lightImg && darkImg;
+      const anyImageLoaded = lightImg || darkImg;
       downloadBtn.disabled = !bothImagesLoaded;
-      uploadPrompt.style.display = bothImagesLoaded ? 'none' : 'block';
+      uploadPrompt.style.display = anyImageLoaded ? 'none' : 'block';
     }
     
     updateUI();
     
     function drawMergedImage() {
-      if (!lightImg || !darkImg) return;
-      
-      const angle = parseFloat(angleSlider.value);
+      // Handle case when no images are loaded
+      if (!lightImg && !darkImg) return;
       
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // If only one image is loaded, just display it
+      if (!darkImg && lightImg) {
+        ctx.drawImage(lightImg, 0, 0);
+        return;
+      }
+      
+      if (!lightImg && darkImg) {
+        ctx.drawImage(darkImg, 0, 0);
+        return;
+      }
+      
+      // Both images loaded - draw merged effect
+      const angle = parseFloat(angleSlider.value);
       
       // Draw dark theme as base
       ctx.drawImage(darkImg, 0, 0);
